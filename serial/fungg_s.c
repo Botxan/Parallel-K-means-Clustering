@@ -9,11 +9,14 @@ Routines used in gengroups_s.c program
 #include "../shared/definegg.h" // definition of constants
 #include <stdio.h>
 
-// function to swap elements
-void swap(float *a, float *b);
-// function to find the partition position
-int partition(float array[], int low, int high);
-void quickSort(float array[], int low, int high);
+// Merges two subarrays of arr[].
+// First subarray is arr[l..m]
+// Second subarray is arr[m+1..r]
+void merge(float arr[], int l, int m, int r);
+
+/* l is for left index and r is right index of the
+sub-array of arr to be sorted */
+void mergeSort(float arr[], int l, int r);
 
 /* 1 - Function to calculate the genetic distance; Euclidean distance between two elements.
        Input:   two elements of NFEAT characteristics (by reference)
@@ -128,7 +131,7 @@ void diseases(struct ginfo *iingrs, float dise[][TDISEASE], struct analysis *dis
 				for (int k = 0; k < gsize; k++)
 					diseaseList[k] = dise[iingrs[i].members[k]][j];
 
-				quickSort(diseaseList, 0, gsize - 1);
+				mergeSort(diseaseList, 0, gsize - 1);
 
 				// Get the median
 				if (gsize % 2 == 0)
@@ -152,58 +155,76 @@ void diseases(struct ginfo *iingrs, float dise[][TDISEASE], struct analysis *dis
 	}
 }
 
-// function to swap elements
-void swap(float *a, float *b)
+// Merges two subarrays of arr[].
+// First subarray is arr[l..m]
+// Second subarray is arr[m+1..r]
+void merge(float arr[], int l, int m, int r)
 {
-	float t = *a;
-	*a = *b;
-	*b = t;
-}
+	int i, j, k;
+	int n1 = m - l + 1;
+	int n2 = r - m;
 
-// function to find the partition position
-int partition(float array[], int low, int high)
-{
-	// select the rightmost element as pivot
-	float pivot = array[high];
+	/* create temp arrays */
+	float L[n1], R[n2];
 
-	// pointer for greater element
-	int i = (low - 1);
+	/* Copy data to temp arrays L[] and R[] */
+	for (i = 0; i < n1; i++)
+		L[i] = arr[l + i];
+	for (j = 0; j < n2; j++)
+		R[j] = arr[m + 1 + j];
 
-	// traverse each element of the array
-	// compare them with the pivot
-	for (int j = low; j < high; j++)
+	/* Merge the temp arrays back into arr[l..r]*/
+	i = 0; // Initial index of first subarray
+	j = 0; // Initial index of second subarray
+	k = l; // Initial index of merged subarray
+	while (i < n1 && j < n2)
 	{
-		if (array[j] <= pivot)
+		if (L[i] <= R[j])
 		{
-			// if element smaller than pivot is found
-			// swap it with the greater element pointed by i
+			arr[k] = L[i];
 			i++;
-
-			// swap element at i with element at j
-			swap(&array[i], &array[j]);
 		}
+		else
+		{
+			arr[k] = R[j];
+			j++;
+		}
+		k++;
 	}
 
-	// swap the pivot element with the greater element at i
-	swap(&array[i + 1], &array[high]);
+	/* Copy the remaining elements of L[], if there
+    are any */
+	while (i < n1)
+	{
+		arr[k] = L[i];
+		i++;
+		k++;
+	}
 
-	// return the partition point
-	return (i + 1);
+	/* Copy the remaining elements of R[], if there
+    are any */
+	while (j < n2)
+	{
+		arr[k] = R[j];
+		j++;
+		k++;
+	}
 }
 
-void quickSort(float array[], int low, int high)
+/* l is for left index and r is right index of the
+sub-array of arr to be sorted */
+void mergeSort(float arr[], int l, int r)
 {
-	if (low < high)
+	if (l < r)
 	{
-		// find the pivot element such that
-		// elements smaller than pivot are on left of pivot
-		// elements greater than pivot are on right of pivot
-		int pi = partition(array, low, high);
+		// Same as (l+r)/2, but avoids overflow for
+		// large l and h
+		int m = l + (r - l) / 2;
 
-		// recursive call on the left of pivot
-		quickSort(array, low, pi - 1);
+		// Sort first and second halves
+		mergeSort(arr, l, m);
+		mergeSort(arr, m + 1, r);
 
-		// recursive call on the right of pivot
-		quickSort(array, pi + 1, high);
+		merge(arr, l, m, r);
 	}
 }
