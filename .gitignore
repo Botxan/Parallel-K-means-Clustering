@@ -3,5 +3,3 @@ gengroups_p
 results_s.out
 results_p.out
 /.vscode
-compile.sh
-run.sh
