@@ -1,0 +1,8 @@
+gengroups_s
+gengroups_p
+results_s.out
+results_p.out
+/.vscode
+/parallel
+compile.sh
+run.sh
