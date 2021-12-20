@@ -28,13 +28,13 @@ then
     if [[ $# -eq 2 ]]; # with all the elements
     then
         echo "[*] Running parallel program with $2 threads and all the elements [*]"
-        echo "~/genetics/parallel/gengroups_p $dbgen $dbdise |& tee >(tail -14 >~/genetics/serial/memusage_p.out) | head -n-15 | tail -n +6"
-        ~/genetics/parallel/gengroups_p $dbgen $dbdise
+        echo "~/genetics/parallel/gengroups_p $dbgen $dbdise"
+        valgrind ~/genetics/parallel/gengroups_p $dbgen $dbdise |& tee >(tail -14 >~/genetics/serial/memusage_s.out) | head -n-15 | tail -n +6
     elif [[ $# -eq 3 ]] && [[ $3 -eq 1000 ]]; # with all the elements
     then
         echo "[*] Running parallel program with $2 threads and 1000 elements [*]"
-        echo "~/genetics/parallel/gengroups_p $dbgen $dbdise 1000 |& tee >(tail -14 >~/genetics/serial/memusage_p.out) | head -n-15 | tail -n +6"
-        ~/genetics/parallel/gengroups_p $dbgen $dbdise 1000
+        echo "~/genetics/parallel/gengroups_p $dbgen $dbdise 1000"
+        valgrind ~/genetics/parallel/gengroups_p $dbgen $dbdise 1000 |& tee >(tail -14 >~/genetics/serial/memusage_s.out) | head -n-15 | tail -n +6
     else
         echo "Use: run p numthreads (1|2|4|8|16|32|64|128) [1000]"
     fi
