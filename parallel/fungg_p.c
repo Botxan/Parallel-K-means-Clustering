@@ -1,7 +1,7 @@
 /*
 CA - OpenMP
-fungg_p.c
-Routines used in gengroups_p.c program
+fungg_s.c
+Routines used in gengroups_s.c program
 */
 
 #include <math.h>
@@ -9,8 +9,14 @@ Routines used in gengroups_p.c program
 #include "../shared/definegg.h" // definition of constants
 #include <stdio.h>
 
-void swap(float *xp, float *yp);
-void bubbleSort(float arr[], int n);
+// Merges two subarrays of arr[].
+// First subarray is arr[l..m]
+// Second subarray is arr[m+1..r]
+void merge(float arr[], int l, int m, int r);
+
+/* l is for left index and r is right index of the
+sub-array of arr to be sorted */
+void mergeSort(float arr[], int l, int r);
 
 /* 1 - Function to calculate the genetic distance; Euclidean distance between two elements.
        Input:   two elements of NFEAT characteristics (by reference)
@@ -28,15 +34,15 @@ double geneticdistance(float *elem1, float *elem2)
 
 /* 2 - Function to calculate the closest group (closest centroid) for each element.
    Input:   nelems   number of elements, int
-            elems    matrix, with the information of the elements, of size MAXELE x NFEAT, by reference
+            elems    matrix, with the information of the elements, of size nelems x NFEAT, by reference
             cent    matrix, with the centroids, of size NGROUPS x NFEAT, by reference
-   Output:  grind   vector of size MAXELE, by reference, closest group for each element
+   Output:  grind   vector of size nelems, by reference, closest group for each element
 ***************************************************************************************************/
-void closestgroup(int nelems, float elems[][NFEAT], float cent[][NFEAT], int *grind)
+void closestgroup(int nelems, float **elems, float cent[][NFEAT], int *grind)
 {
-   float min_d; // Auxiliary variable to store the closest centroid value
-   int min_d_i; // Auxiliary variable to store the closest centroid index
-   float aux_d; // Auxiliary variable to store the output of geneticdistance
+   double min_d; // Auxiliary variable to store the closest centroid value
+   int min_d_i;  // Auxiliary variable to store the closest centroid index
+   double aux_d; // Auxiliary variable to store the output of geneticdistance
 
    // Iterave over all elements
    for (int i = 0; i < nelems; i++)
@@ -63,11 +69,11 @@ void closestgroup(int nelems, float elems[][NFEAT], float cent[][NFEAT], int *gr
 }
 
 /* 3 - Function to calculate the compactness of each group (average distance between all the elements in the group) 
-   Input:  elems     elements (matrix of size MAXELE x NFEAT, by reference)
+   Input:  elems     elements (matrix of size nelems x NFEAT, by reference)
            iingrs   indices of the elements in each group (vector of size NGROUPS with information for each group)
    Output: compact  compactness of each group (vector of size NGROUPS, by reference) 
 ***************************************************************************************************/
-void groupcompactness(float elems[][NFEAT], struct ginfo *iingrs, float *compact)
+void groupcompactness(float **elems, struct ginfo *iingrs, float *compact)
 {
    // We need this variable because compact variable points to an average of distances
    // if we try to calculate the sum of all distances in this variable, if the group is so big,
@@ -96,13 +102,13 @@ void groupcompactness(float elems[][NFEAT], struct ginfo *iingrs, float *compact
 }
 
 /* 4 - Function to analyse diseases 
-   Input:  iingrs   indices of the elements in each group (matrix of size NGROUPS x MAXELE, by reference)
+   Input:  iingrs   indices of the elements in each group (matrix of size NGROUPS x nelems, by reference)
            dise     information about the diseases (NGROUPS x TDISEASE)
    Output: disepro  analysis of the diseases: maximum, minimum of the medians and groups
 ***************************************************************************************************/
-void diseases(struct ginfo *iingrs, float dise[][TDISEASE], struct analysis *disepro)
+void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *disepro)
 {
-   float diseaseList[MAXELE];
+   float diseaseList[nelems];
    float median;
    int gsize;
 
@@ -125,7 +131,7 @@ void diseases(struct ginfo *iingrs, float dise[][TDISEASE], struct analysis *dis
             for (int k = 0; k < gsize; k++)
                diseaseList[k] = dise[iingrs[i].members[k]][j];
 
-            bubbleSort(diseaseList, gsize);
+            mergeSort(diseaseList, 0, gsize - 1);
 
             // Get the median
             if (gsize % 2 == 0)
@@ -149,21 +155,76 @@ void diseases(struct ginfo *iingrs, float dise[][TDISEASE], struct analysis *dis
    }
 }
 
-void swap(float *xp, float *yp)
+// Merges two subarrays of arr[].
+// First subarray is arr[l..m]
+// Second subarray is arr[m+1..r]
+void merge(float arr[], int l, int m, int r)
 {
-   float temp = *xp;
-   *xp = *yp;
-   *yp = temp;
+   int i, j, k;
+   int n1 = m - l + 1;
+   int n2 = r - m;
+
+   /* create temp arrays */
+   float L[n1], R[n2];
+
+   /* Copy data to temp arrays L[] and R[] */
+   for (i = 0; i < n1; i++)
+      L[i] = arr[l + i];
+   for (j = 0; j < n2; j++)
+      R[j] = arr[m + 1 + j];
+
+   /* Merge the temp arrays back into arr[l..r]*/
+   i = 0; // Initial index of first subarray
+   j = 0; // Initial index of second subarray
+   k = l; // Initial index of merged subarray
+   while (i < n1 && j < n2)
+   {
+      if (L[i] <= R[j])
+      {
+         arr[k] = L[i];
+         i++;
+      }
+      else
+      {
+         arr[k] = R[j];
+         j++;
+      }
+      k++;
+   }
+
+   /* Copy the remaining elements of L[], if there
+    are any */
+   while (i < n1)
+   {
+      arr[k] = L[i];
+      i++;
+      k++;
+   }
+
+   /* Copy the remaining elements of R[], if there
+    are any */
+   while (j < n2)
+   {
+      arr[k] = R[j];
+      j++;
+      k++;
+   }
 }
 
-// A function to implement bubble sort
-void bubbleSort(float arr[], int n)
+/* l is for left index and r is right index of the
+sub-array of arr to be sorted */
+void mergeSort(float arr[], int l, int r)
 {
-   int i, j;
-   for (i = 0; i < n - 1; i++)
+   if (l < r)
+   {
+      // Same as (l+r)/2, but avoids overflow for
+      // large l and h
+      int m = l + (r - l) / 2;
 
-      // Last i elements are already in place
-      for (j = 0; j < n - i - 1; j++)
-         if (arr[j] > arr[j + 1])
-            swap(&arr[j], &arr[j + 1]);
+      // Sort first and second halves
+      mergeSort(arr, l, m);
+      mergeSort(arr, m + 1, r);
+
+      merge(arr, l, m, r);
+   }
 }

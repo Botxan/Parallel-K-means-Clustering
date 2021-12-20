@@ -1,15 +1,15 @@
 /* 
     CA - practical work OpenMP
-    gengroups_p.c PARALLEL VERSION
+    gengroups_s.c SERIAL VERSION
 
     Processing genetic characteristics to discover information about diseases
     Classify in NGROUPS groups, elements of NFEAT features, according to "distances"    
 
     Input:  dbgen.dat 	   input file with genetic information
             dbdise.dat     input file with information about diseases
-    Output: results_p.out  centroids, number of group members and compactness, and diseases
+    Output: results_s.out  centroids, number of group members and compactness, and diseases
 
-    Compile with module fungg_p.c and include option -lm
+    Compile with module fungg_s.c and include option -lm
 */
 
 #include <stdio.h>
@@ -20,24 +20,23 @@
 #include "../shared/definegg.h"
 #include "../shared/fungg.h"
 
-float elems[MAXELE][NFEAT];	  // matrix to keep information about every element
+float **elems;				  // matrix to keep information about every element
 struct ginfo iingrs[NGROUPS]; // vector to store information about each group: members and size
 
-float dise[MAXELE][TDISEASE];	   // probabilities of diseases (from dbdise.dat)
+float **dise;					   // probabilities of diseases (from dbdise.dat)
 struct analysis disepro[TDISEASE]; // vector to store information about each disease (max, min, group...)
 
 // Main program
 // ============
 void main(int argc, char *argv[])
 {
-
 	float cent[NGROUPS][NFEAT], newcent[NGROUPS][NFEAT]; // centroids and new centroids
 	double additions[NGROUPS][NFEAT + 1];
 	float compact[NGROUPS]; // compactness of each group or cluster
 
 	int i, j;
 	int nelems, group;
-	int grind[MAXELE]; // group assigned to each element
+	int *grind; // group assigned to each element
 	int finish = 0, niter = 0;
 	double discent;
 
@@ -45,15 +44,13 @@ void main(int argc, char *argv[])
 	struct timespec t1, t2, t3, t4, t5, t6, t7;
 	double t_read, t_clus, t_org, t_compact, t_anal, t_write;
 
-	int numthreads = omp_get_num_threads();
-
 	if ((argc < 3) || (argc > 4))
 	{
 		printf("ATTENTION:  progr file1 (elems) file2 (dise) [num elems])\n");
 		exit(-1);
 	}
 
-	printf("\n >> Parallel execution with %d threads\n", numthreads);
+	printf("\n >> Serial execution\n");
 	clock_gettime(CLOCK_REALTIME, &t1);
 
 	// read data from files: elems[i][j] and dise[i][j]
@@ -68,6 +65,16 @@ void main(int argc, char *argv[])
 	fscanf(f1, "%d", &nelems);
 	if (argc == 4)
 		nelems = atoi(argv[3]);
+
+	// Assign memory dynamically to elems, dise and grind
+	elems = (float **)malloc(nelems * sizeof(float *));
+	dise = (float **)malloc(nelems * sizeof(float *));
+	grind = (int *)malloc(nelems * sizeof(int));
+	for (i = 0; i < nelems; i++)
+	{
+		elems[i] = (float *)malloc(NFEAT * sizeof(float));
+		dise[i] = (float *)malloc(TDISEASE * sizeof(float));
+	}
 
 	for (i = 0; i < nelems; i++)
 		for (j = 0; j < NFEAT; j++)
@@ -171,14 +178,14 @@ void main(int argc, char *argv[])
 
 	// diseases analysis
 
-	diseases(iingrs, dise, disepro);
+	diseases(nelems, iingrs, dise, disepro);
 
 	clock_gettime(CLOCK_REALTIME, &t6);
 
 	// write results in a file
 	// =======================
 
-	f2 = fopen("results_p.out", "w");
+	f2 = fopen("results_s.out", "w");
 	if (f2 == NULL)
 	{
 		printf("Error when opening file results_s.outs \n");
