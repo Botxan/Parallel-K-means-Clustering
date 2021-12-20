@@ -168,6 +168,9 @@ void main(int argc, char *argv[])
 		iingrs[group].size++;
 	}
 
+	// free the memory
+	free(grind);
+
 	clock_gettime(CLOCK_REALTIME, &t4);
 
 	// compactness of each group: average distance between elements
@@ -178,6 +181,10 @@ void main(int argc, char *argv[])
 	// diseases analysis
 
 	diseases(nelems, iingrs, dise, disepro);
+
+	// free the memory
+	free(elems);
+	free(dise);
 
 	clock_gettime(CLOCK_REALTIME, &t6);
 
