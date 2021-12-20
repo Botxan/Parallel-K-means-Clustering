@@ -6,6 +6,7 @@ Routines used in gengroups_s.c program
 
 #include <math.h>
 #include <float.h>
+#include <stdlib.h>
 #include "../shared/definegg.h" // definition of constants
 #include <stdio.h>
 
@@ -44,7 +45,7 @@ void closestgroup(int nelems, float **elems, float cent[][NFEAT], int *grind)
 	int min_d_i;  // Auxiliary variable to store the closest centroid index
 	double aux_d; // Auxiliary variable to store the output of geneticdistance
 
-	// Iterave over all elements
+	// Iterate over all elements
 	for (int i = 0; i < nelems; i++)
 	{
 		// Initialize the minimum distance
@@ -108,7 +109,7 @@ void groupcompactness(float **elems, struct ginfo *iingrs, float *compact)
 ***************************************************************************************************/
 void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *disepro)
 {
-	float diseaseList[nelems];
+	float *diseaseList;
 	float median;
 	int gsize;
 
@@ -123,6 +124,9 @@ void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *d
 	{
 		gsize = iingrs[i].size;
 
+		// Allocate memory for diseaseList
+		diseaseList = (float *)malloc(gsize * sizeof(float));
+
 		if (gsize > 0)
 		{
 			for (int j = 0; j < TDISEASE; j++)
@@ -134,10 +138,8 @@ void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *d
 				mergeSort(diseaseList, 0, gsize - 1);
 
 				// Get the median
-				if (gsize % 2 == 0)
-					median = diseaseList[(gsize + 1) / 2];
-				else
-					median = diseaseList[(gsize) / 2];
+				if (gsize % 2 == 0) median = diseaseList[(gsize + 1) / 2];
+				else median = diseaseList[(gsize) / 2];
 
 				// Check if it is the new maximum / minimum of the current disease´
 				if (median < disepro[j].mmin)
@@ -152,6 +154,9 @@ void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *d
 				}
 			}
 		}
+
+		// Free the memory
+		free(diseaseList);
 	}
 }
 

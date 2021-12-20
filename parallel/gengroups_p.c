@@ -113,7 +113,6 @@ void main(int argc, char *argv[])
 	finish = 0;
 	while ((finish == 0) && (niter < MAXIT))
 	{
-
 		// Obtain the closest group or cluster for each element
 		closestgroup(nelems, elems, cent, grind);
 

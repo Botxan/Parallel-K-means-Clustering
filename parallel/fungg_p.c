@@ -8,6 +8,7 @@ Routines used in gengroups_s.c program
 #include <float.h>
 #include "../shared/definegg.h" // definition of constants
 #include <stdio.h>
+#include <omp.h>
 
 // Merges two subarrays of arr[].
 // First subarray is arr[l..m]
@@ -25,6 +26,8 @@ void mergeSort(float arr[], int l, int r);
 double geneticdistance(float *elem1, float *elem2)
 {
    double distance = 0;
+
+   #pragma omp parallel for reduction(+:distance)
    for (int i = 0; i < NFEAT; i++)
       // Get euclidean distance of specific feature
       distance += pow(elem1[i] - elem2[i], 2);
@@ -44,7 +47,7 @@ void closestgroup(int nelems, float **elems, float cent[][NFEAT], int *grind)
    int min_d_i;  // Auxiliary variable to store the closest centroid index
    double aux_d; // Auxiliary variable to store the output of geneticdistance
 
-   // Iterave over all elements
+   // Iterate over all elements
    for (int i = 0; i < nelems; i++)
    {
       // Initialize the minimum distance
@@ -108,51 +111,55 @@ void groupcompactness(float **elems, struct ginfo *iingrs, float *compact)
 ***************************************************************************************************/
 void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *disepro)
 {
-   float diseaseList[nelems];
-   float median;
-   int gsize;
+	float *diseaseList;
+	float median;
+	int gsize;
 
-   // Intialize disepro struct for the current disease
-   for (int i = 0; i < TDISEASE; i++)
-   {
-      disepro[i].mmax = FLT_MIN;
-      disepro[i].mmin = FLT_MAX;
-   }
+	// Intialize disepro struct for the current disease
+	for (int i = 0; i < TDISEASE; i++)
+	{
+		disepro[i].mmax = FLT_MIN;
+		disepro[i].mmin = FLT_MAX;
+	}
 
-   for (int i = 0; i < NGROUPS; i++)
-   {
-      gsize = iingrs[i].size;
+	for (int i = 0; i < NGROUPS; i++)
+	{
+		gsize = iingrs[i].size;
 
-      if (gsize > 0)
-      {
-         for (int j = 0; j < TDISEASE; j++)
-         {
-            // Fill the auxiliary array with all the value for current disease of current group
-            for (int k = 0; k < gsize; k++)
-               diseaseList[k] = dise[iingrs[i].members[k]][j];
+		// Allocate memory for diseaseList
+		diseaseList = (float *)malloc(gsize * sizeof(float));
 
-            mergeSort(diseaseList, 0, gsize - 1);
+		if (gsize > 0)
+		{
+			for (int j = 0; j < TDISEASE; j++)
+			{
+				// Fill the auxiliary array with all the value for current disease of current group
+				for (int k = 0; k < gsize; k++)
+					diseaseList[k] = dise[iingrs[i].members[k]][j];
 
-            // Get the median
-            if (gsize % 2 == 0)
-               median = diseaseList[(gsize + 1) / 2];
-            else
-               median = diseaseList[(gsize) / 2];
+				mergeSort(diseaseList, 0, gsize - 1);
 
-            // Check if it is the new maximum / minimum of the current disease´
-            if (median < disepro[j].mmin)
-            {
-               disepro[j].mmin = median;
-               disepro[j].gmin = i;
-            }
-            else if (median > disepro[j].mmax)
-            {
-               disepro[j].mmax = median;
-               disepro[j].gmax = i;
-            }
-         }
-      }
-   }
+				// Get the median
+				if (gsize % 2 == 0) median = diseaseList[(gsize + 1) / 2];
+				else median = diseaseList[(gsize) / 2];
+
+				// Check if it is the new maximum / minimum of the current disease´
+				if (median < disepro[j].mmin)
+				{
+					disepro[j].mmin = median;
+					disepro[j].gmin = i;
+				}
+				else if (median > disepro[j].mmax)
+				{
+					disepro[j].mmax = median;
+					disepro[j].gmax = i;
+				}
+			}
+		}
+
+		// Free the memory
+		free(diseaseList);
+	}
 }
 
 // Merges two subarrays of arr[].
