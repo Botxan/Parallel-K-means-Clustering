@@ -19,24 +19,23 @@
 #include "../shared/definegg.h"
 #include "../shared/fungg.h"
 
-float elems[MAXELE][NFEAT];	  // matrix to keep information about every element
+float **elems;				  // matrix to keep information about every element
 struct ginfo iingrs[NGROUPS]; // vector to store information about each group: members and size
 
-float dise[MAXELE][TDISEASE];	   // probabilities of diseases (from dbdise.dat)
+float **dise;					   // probabilities of diseases (from dbdise.dat)
 struct analysis disepro[TDISEASE]; // vector to store information about each disease (max, min, group...)
 
 // Main program
 // ============
 void main(int argc, char *argv[])
 {
-
 	float cent[NGROUPS][NFEAT], newcent[NGROUPS][NFEAT]; // centroids and new centroids
 	double additions[NGROUPS][NFEAT + 1];
 	float compact[NGROUPS]; // compactness of each group or cluster
 
 	int i, j;
 	int nelems, group;
-	int grind[MAXELE]; // group assigned to each element
+	int *grind; // group assigned to each element
 	int finish = 0, niter = 0;
 	double discent;
 
@@ -65,6 +64,16 @@ void main(int argc, char *argv[])
 	fscanf(f1, "%d", &nelems);
 	if (argc == 4)
 		nelems = atoi(argv[3]);
+
+	// Assign memory dynamically to elems, dise and grind
+	elems = (float **)malloc(nelems * sizeof(float *));
+	dise = (float **)malloc(nelems * sizeof(float *));
+	grind = (int *)malloc(nelems * sizeof(int));
+	for (i = 0; i < nelems; i++)
+	{
+		elems[i] = (float *)malloc(NFEAT * sizeof(float));
+		dise[i] = (float *)malloc(TDISEASE * sizeof(float));
+	}
 
 	for (i = 0; i < nelems; i++)
 		for (j = 0; j < NFEAT; j++)
@@ -168,7 +177,7 @@ void main(int argc, char *argv[])
 
 	// diseases analysis
 
-	diseases(iingrs, dise, disepro);
+	diseases(nelems, iingrs, dise, disepro);
 
 	clock_gettime(CLOCK_REALTIME, &t6);
 

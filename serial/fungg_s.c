@@ -34,15 +34,15 @@ double geneticdistance(float *elem1, float *elem2)
 
 /* 2 - Function to calculate the closest group (closest centroid) for each element.
    Input:   nelems   number of elements, int
-            elems    matrix, with the information of the elements, of size MAXELE x NFEAT, by reference
+            elems    matrix, with the information of the elements, of size nelems x NFEAT, by reference
             cent    matrix, with the centroids, of size NGROUPS x NFEAT, by reference
-   Output:  grind   vector of size MAXELE, by reference, closest group for each element
+   Output:  grind   vector of size nelems, by reference, closest group for each element
 ***************************************************************************************************/
-void closestgroup(int nelems, float elems[][NFEAT], float cent[][NFEAT], int *grind)
+void closestgroup(int nelems, float **elems, float cent[][NFEAT], int *grind)
 {
-	float min_d; // Auxiliary variable to store the closest centroid value
-	int min_d_i; // Auxiliary variable to store the closest centroid index
-	float aux_d; // Auxiliary variable to store the output of geneticdistance
+	double min_d; // Auxiliary variable to store the closest centroid value
+	int min_d_i;  // Auxiliary variable to store the closest centroid index
+	double aux_d; // Auxiliary variable to store the output of geneticdistance
 
 	// Iterave over all elements
 	for (int i = 0; i < nelems; i++)
@@ -69,11 +69,11 @@ void closestgroup(int nelems, float elems[][NFEAT], float cent[][NFEAT], int *gr
 }
 
 /* 3 - Function to calculate the compactness of each group (average distance between all the elements in the group) 
-   Input:  elems     elements (matrix of size MAXELE x NFEAT, by reference)
+   Input:  elems     elements (matrix of size nelems x NFEAT, by reference)
            iingrs   indices of the elements in each group (vector of size NGROUPS with information for each group)
    Output: compact  compactness of each group (vector of size NGROUPS, by reference) 
 ***************************************************************************************************/
-void groupcompactness(float elems[][NFEAT], struct ginfo *iingrs, float *compact)
+void groupcompactness(float **elems, struct ginfo *iingrs, float *compact)
 {
 	// We need this variable because compact variable points to an average of distances
 	// if we try to calculate the sum of all distances in this variable, if the group is so big,
@@ -102,13 +102,13 @@ void groupcompactness(float elems[][NFEAT], struct ginfo *iingrs, float *compact
 }
 
 /* 4 - Function to analyse diseases 
-   Input:  iingrs   indices of the elements in each group (matrix of size NGROUPS x MAXELE, by reference)
+   Input:  iingrs   indices of the elements in each group (matrix of size NGROUPS x nelems, by reference)
            dise     information about the diseases (NGROUPS x TDISEASE)
    Output: disepro  analysis of the diseases: maximum, minimum of the medians and groups
 ***************************************************************************************************/
-void diseases(struct ginfo *iingrs, float dise[][TDISEASE], struct analysis *disepro)
+void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *disepro)
 {
-	float diseaseList[MAXELE];
+	float diseaseList[nelems];
 	float median;
 	int gsize;
 
