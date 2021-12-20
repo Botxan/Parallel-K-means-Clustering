@@ -16,7 +16,7 @@ then # serial execution
     then
         echo "[*] Running serial program with 1000 elements [*]"
         echo "~/genetics/serial/gengroups_s $dbgen $dbdise 1000"
-        ~/genetics/serial/gengroups_s $dbgen $dbdise 1000 2>&1 |& tee >(tail -14 >~/genetics/serial/memusage_s.out)
+        ~/genetics/serial/gengroups_s $dbgen $dbdise 1000
     else
         echo "Use: run s [1000]"
     fi
@@ -29,12 +29,12 @@ then
     then
         echo "[*] Running parallel program with $2 threads and all the elements [*]"
         echo "~/genetics/parallel/gengroups_p $dbgen $dbdise"
-        ~/genetics/parallel/gengroups_p $dbgen $dbdise |& tee >(tail -14 >~/genetics/serial/memusage_s.out)
+        ~/genetics/parallel/gengroups_p $dbgen $dbdise
     elif [[ $# -eq 3 ]] && [[ $3 -eq 1000 ]]; # with all the elements
     then
         echo "[*] Running parallel program with $2 threads and 1000 elements [*]"
         echo "~/genetics/parallel/gengroups_p $dbgen $dbdise 1000"
-        ~/genetics/parallel/gengroups_p $dbgen $dbdise 1000 |& tee >(tail -14 >~/genetics/serial/memusage_s.out)
+        ~/genetics/parallel/gengroups_p $dbgen $dbdise 1000
     else
         echo "Use: run p numthreads (1|2|4|8|16|32|64|128) [1000]"
     fi
