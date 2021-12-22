@@ -112,7 +112,6 @@ void main(int argc, char *argv[])
 	finish = 0;
 	while ((finish == 0) && (niter < MAXIT))
 	{
-
 		// Obtain the closest group or cluster for each element
 		closestgroup(nelems, elems, cent, grind);
 
@@ -179,7 +178,6 @@ void main(int argc, char *argv[])
 	clock_gettime(CLOCK_REALTIME, &t5);
 
 	// diseases analysis
-
 	diseases(nelems, iingrs, dise, disepro);
 
 	// free the memory

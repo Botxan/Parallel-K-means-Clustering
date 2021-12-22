@@ -20,7 +20,7 @@ then # serial execution
     else
         echo "Use: run s [1000]"
     fi
-elif [[ $1 == "p" ]] && [[ $2 =~ ^(1|2|4|8|16|32|64|128)$ ]]; # parallel execution
+elif [[ $1 == "p" ]] && [[ $2 =~ ^(1|2|4|8|16|32|64|128|256|512)$ ]]; # parallel execution
 then
     # Run script with source run.sh in order to make the variable change persistent
     export OMP_NUM_THREADS=$2
@@ -36,7 +36,7 @@ then
         echo "~/genetics/parallel/gengroups_p $dbgen $dbdise 1000"
         ~/genetics/parallel/gengroups_p $dbgen $dbdise 1000
     else
-        echo "Use: run p numthreads (1|2|4|8|16|32|64|128) [1000]"
+        echo "Use: run p numthreads (1|2|4|8|16|32|64|128|256|512) [1000]"
     fi
 else
     echo "Use: run (s (for serial) [1000] | p (for parallel) numthreads (1|2|4|8|16|32|64|128) [1000])"

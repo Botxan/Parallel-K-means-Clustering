@@ -49,8 +49,7 @@ void closestgroup(int nelems, float **elems, float cent[][NFEAT], int *grind)
 	for (int i = 0; i < nelems; i++)
 	{
 		// Initialize the minimum distance
-		min_d = FLT_MAX;
-		min_d_i = -1;
+		min_d = DBL_MAX;
 
 		// For each element, get the distance with every centroid, and store the
 		// index of the centroid with closest distance
@@ -97,7 +96,7 @@ void groupcompactness(float **elems, struct ginfo *iingrs, float *compact)
 				// Get the distance of the element j with respect the rest of the elements of the group
 				for (int k = j + 1; k < gsize; k++)
 					comp_aux += geneticdistance(elems[iingrs[i].members[j]], elems[iingrs[i].members[k]]);
-			compact[i] = (double)(comp_aux / ((gsize * (gsize - 1)) / 2));
+			compact[i] = (float)(comp_aux / ((gsize * (gsize - 1)) / 2));
 		}
 	}
 }

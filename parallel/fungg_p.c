@@ -1,13 +1,14 @@
 /*
 CA - OpenMP
-fungg_s.c
-Routines used in gengroups_s.c program
+fungg_p.c
+Routines used in gengroups_p.c program
 */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include <float.h>
 #include "../shared/definegg.h" // definition of constants
-#include <stdio.h>
 #include <omp.h>
 
 // Merges two subarrays of arr[].
@@ -25,14 +26,12 @@ void mergeSort(float arr[], int l, int r);
 ***************************************************************************************************/
 double geneticdistance(float *elem1, float *elem2)
 {
-   double distance = 0;
+	double distance = 0;
+	for (int i = 0; i < NFEAT; i++)
+		// Get euclidean distance of specific feature
+		distance += pow(elem1[i] - elem2[i], 2);
 
-   #pragma omp parallel for reduction(+:distance)
-   for (int i = 0; i < NFEAT; i++)
-      // Get euclidean distance of specific feature
-      distance += pow(elem1[i] - elem2[i], 2);
-
-   return sqrt(distance);
+	return sqrt(distance);
 }
 
 /* 2 - Function to calculate the closest group (closest centroid) for each element.
@@ -43,32 +42,32 @@ double geneticdistance(float *elem1, float *elem2)
 ***************************************************************************************************/
 void closestgroup(int nelems, float **elems, float cent[][NFEAT], int *grind)
 {
-   double min_d; // Auxiliary variable to store the closest centroid value
-   int min_d_i;  // Auxiliary variable to store the closest centroid index
-   double aux_d; // Auxiliary variable to store the output of geneticdistance
+	double min_d; // closest centroid value
+	int min_d_i;  // closest centroid index
+	double aux_d; // output of geneticdistance
 
-   // Iterate over all elements
-   for (int i = 0; i < nelems; i++)
-   {
-      // Initialize the minimum distance
-      min_d = FLT_MAX;
-      min_d_i = -1;
+	// Iterate over all elements
+    #pragma omp for nowait private(min_d, min_d_i, aux_d)
+	for (int i = 0; i < nelems; i++)
+	{
+		// Initialize the minimum distance
+		min_d = DBL_MAX;
 
-      // For each element, get the distance with every centroid, and store the
-      // index of the centroid with closest distance
-      for (int j = 0; j < NGROUPS; j++)
-      {
-         aux_d = geneticdistance(elems[i], cent[j]);
-         if (aux_d < min_d)
-         {
-            min_d = aux_d;
-            min_d_i = j;
-         }
-      }
+		// For each element, get the distance with every centroid, and store the
+		// index of the centroid with closest distance
+		for (int j = 0; j < NGROUPS; j++)
+		{
+			aux_d = geneticdistance(elems[i], cent[j]);
+			if (aux_d < min_d)
+			{
+				min_d = aux_d;
+				min_d_i = j;
+			}
+		}
 
-      // Assign to the element i the closest centroid, stored in min
-      grind[i] = min_d_i;
-   }
+		// Assign to the element i the closest centroid, stored in min
+		grind[i] = min_d_i;
+	}
 }
 
 /* 3 - Function to calculate the compactness of each group (average distance between all the elements in the group) 
@@ -78,30 +77,31 @@ void closestgroup(int nelems, float **elems, float cent[][NFEAT], int *grind)
 ***************************************************************************************************/
 void groupcompactness(float **elems, struct ginfo *iingrs, float *compact)
 {
-   // We need this variable because compact variable points to an average of distances
+   // We need this variable because compact variable points to an average of distances, and
    // if we try to calculate the sum of all distances in this variable, if the group is so big,
    // it may not fit and the compiler will try to round it, so the final result is not going to be
    // completely accurate
    double comp_aux;
    int gsize;
 
-   // Iterate over each group
-   for (int i = 0; i < NGROUPS; i++)
-   {
-      gsize = iingrs[i].size;
-      if (gsize <= 1)
-         compact[i] = 0.0;
-      else
-      {
-         comp_aux = 0.0;
-         // Iterate over each element of the group
-         for (int j = 0; j < gsize; j++)
-            // Get the distance of the element j with respect the rest of the elements of the group
-            for (int k = j + 1; k < gsize; k++)
-               comp_aux += geneticdistance(elems[iingrs[i].members[j]], elems[iingrs[i].members[k]]);
-         compact[i] = (double)(comp_aux / ((gsize * (gsize - 1)) / 2));
-      }
-   }
+	// Iterate over each group
+	#pragma omp for nowait private(gsize, comp_aux)
+	for (int i = 0; i < NGROUPS; i++)
+	{
+		gsize = iingrs[i].size;
+		if (gsize <= 1)
+			compact[i] = 0.0;
+		else
+		{
+			comp_aux = 0.0;
+			// Iterate over each element of the group
+			for (int j = 0; j < gsize; j++)
+				// Get the distance of the element j with respect the rest of the elements of the group
+				for (int k = j + 1; k < gsize; k++)
+				comp_aux += geneticdistance(elems[iingrs[i].members[j]], elems[iingrs[i].members[k]]);
+			compact[i] = (float)(comp_aux / ((gsize * (gsize - 1)) / 2));
+		}
+	}
 }
 
 /* 4 - Function to analyse diseases 
@@ -116,17 +116,18 @@ void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *d
 	int gsize;
 
 	// Intialize disepro struct for the current disease
+	#pragma omp for
 	for (int i = 0; i < TDISEASE; i++)
 	{
 		disepro[i].mmax = FLT_MIN;
 		disepro[i].mmin = FLT_MAX;
 	}
 
+	#pragma omp for nowait private(gsize, diseaseList, median)
 	for (int i = 0; i < NGROUPS; i++)
 	{
 		gsize = iingrs[i].size;
 
-		// Allocate memory for diseaseList
 		diseaseList = (float *)malloc(gsize * sizeof(float));
 
 		if (gsize > 0)
@@ -143,20 +144,22 @@ void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *d
 				if (gsize % 2 == 0) median = diseaseList[(gsize + 1) / 2];
 				else median = diseaseList[(gsize) / 2];
 
-				// Check if it is the new maximum / minimum of the current disease´
-				if (median < disepro[j].mmin)
+				#pragma omp critical
 				{
-					disepro[j].mmin = median;
-					disepro[j].gmin = i;
-				}
-				else if (median > disepro[j].mmax)
-				{
-					disepro[j].mmax = median;
-					disepro[j].gmax = i;
+					// Check if it is the new maximum / minimum of the current disease´
+					if ((median < disepro[j].mmin) || ((median == disepro[j].mmin) && (i < disepro[j].gmin)))
+					{
+						disepro[j].mmin = median;
+						disepro[j].gmin = i;
+					}
+					if ((median > disepro[j].mmax) || ((median == disepro[j].mmax) && (i < disepro[j].gmax)))
+					{
+						disepro[j].mmax = median;
+						disepro[j].gmax = i;
+					}
 				}
 			}
-		}
-
+		}		
 		// Free the memory
 		free(diseaseList);
 	}

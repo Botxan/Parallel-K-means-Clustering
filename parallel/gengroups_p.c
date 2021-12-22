@@ -1,15 +1,15 @@
 /* 
     CA - practical work OpenMP
-    gengroups_s.c SERIAL VERSION
+    gengroups_s.c PARALLEL VERSION
 
     Processing genetic characteristics to discover information about diseases
     Classify in NGROUPS groups, elements of NFEAT features, according to "distances"    
 
     Input:  dbgen.dat 	   input file with genetic information
             dbdise.dat     input file with information about diseases
-    Output: results_s.out  centroids, number of group members and compactness, and diseases
+    Output: results_p.out  centroids, number of group members and compactness, and diseases
 
-    Compile with module fungg_s.c and include option -lm
+    Compile with module fungg_p.c and include option -lm
 */
 
 #include <stdio.h>
@@ -46,11 +46,11 @@ void main(int argc, char *argv[])
 
 	if ((argc < 3) || (argc > 4))
 	{
-		printf("ATTENTION:  progr file1 (elems) file2 (dise) [num elems])\n");
+		printf("ATTENTION: progr file1 (elems) file2 (dise) [num elems])\n");
 		exit(-1);
 	}
 
-	printf("\n >> Serial execution\n");
+	printf("\n >> Parallel execution\n");
 	clock_gettime(CLOCK_REALTIME, &t1);
 
 	// read data from files: elems[i][j] and dise[i][j]
@@ -111,45 +111,58 @@ void main(int argc, char *argv[])
 	// ======================================================
 	niter = 0;
 	finish = 0;
+
 	while ((finish == 0) && (niter < MAXIT))
 	{
-		// Obtain the closest group or cluster for each element
-		closestgroup(nelems, elems, cent, grind);
-
-		// calculate new centroids for each group:  average of each dimension or feature
-		// additions: to accumulate the values for each feature and cluster. Last value: number of elements in the group
-		for (i = 0; i < NGROUPS; i++)
-			for (j = 0; j < NFEAT + 1; j++)
-				additions[i][j] = 0.0;
-
-		for (i = 0; i < nelems; i++)
+		#pragma omp parallel default(none) shared(nelems, elems, cent, grind, additions, finish, newcent, niter) private(i, j)
 		{
-			for (j = 0; j < NFEAT; j++)
-				additions[grind[i]][j] += elems[i][j];
-			additions[grind[i]][NFEAT]++;
-		}
-
-		// Calculate new centroids and decide to finish or not depending on DELTA
-		finish = 1;
-		for (i = 0; i < NGROUPS; i++)
-		{
-			if (additions[i][NFEAT] > 0)
-			{ // the group is not empty
+			// Obtain the closest group or cluster for each element
+			// [*] Closest group uses pragma omp for
+			closestgroup(nelems, elems, cent, grind);
+		
+			// calculate new centroids for each group:  average of each dimension or feature
+			// additions: to accumulate the values for each feature and cluster. Last value: number of elements in the group
+			// [*] Parallelized initialisation
+			#pragma omp for
+			for (i = 0; i < NGROUPS; i++)
+				for (j = 0; j < NFEAT + 1; j++)
+					additions[i][j] = 0.0;
+		
+			// [*] additions is a summation, so reduction +
+			#pragma omp for nowait reduction(+:additions)
+			for (i = 0; i < nelems; i++)
+			{
 				for (j = 0; j < NFEAT; j++)
-					newcent[i][j] = additions[i][j] / additions[i][NFEAT];
-
-				// decide if the process needs to be finished
-				discent = geneticdistance(&newcent[i][0], &cent[i][0]);
-				if (discent > DELTA)
-					finish = 0; // there is change at least in one of the dimensions; continue with the process
-
-				// copy new centroids
-				for (j = 0; j < NFEAT; j++)
-					cent[i][j] = newcent[i][j];
+					additions[grind[i]][j] += elems[i][j];
+				additions[grind[i]][NFEAT]++;
 			}
-		}
 
-		niter++;
+			// Calculate new centroids and decide to finish or not depending on DELTA
+			// [*] finish variable is checked by just one thread, and we need a barrier
+			// for the next loop (implicit in #pragma omp single)
+			#pragma omp single
+			finish = 1;
+
+			// [*] Parallelized calculation of new centroids
+			
+			#pragma omp for nowait private(discent)
+			for (i = 0; i < NGROUPS; i++)
+				if (additions[i][NFEAT] > 0) // the group is not empty
+				{
+					for (j = 0; j < NFEAT; j++)
+						newcent[i][j] = additions[i][j] / additions[i][NFEAT];
+
+					// decide if the process needs to be finished
+					discent = geneticdistance(&newcent[i][0], &cent[i][0]);
+					if (discent > DELTA)
+						finish = 0; // there is change at least in one of the dimensions; continue with the process
+
+					// copy new centroids
+					for (j = 0; j < NFEAT; j++)
+						cent[i][j] = newcent[i][j];
+				}		
+		}
+		niter++;	
 	} // while
 
 	clock_gettime(CLOCK_REALTIME, &t3);
@@ -157,30 +170,44 @@ void main(int argc, char *argv[])
 	// Phase 2: count the number of elements of each group and calculate the "compactness" of the group
 	// and analyse diseases
 	// ================================================================================================
-	for (i = 0; i < NGROUPS; i++)
-		iingrs[i].size = 0;
-
-	// number of elements and classification
-	for (i = 0; i < nelems; i++)
+	#pragma omp parallel default(none) shared(iingrs, nelems, grind, t4, elems, compact, t5, dise, disepro) private(i, group)
 	{
-		group = grind[i];
-		iingrs[group].members[iingrs[group].size] = i;
-		iingrs[group].size++;
+		#pragma omp for
+		for (i = 0; i < NGROUPS; i++) iingrs[i].size = 0;
+	
+		// number of elements and classification
+		// [*] Parallelize the classification is possible
+		// [*] But watch out! iingrs struct.size can not be reduced since
+		// it is a struct member. Critical section must be used in order
+		// to prevent more than one thread to edit iingr[group] at the same time
+		#pragma omp for private(i, group)
+		for (i = 0; i < nelems; i++)
+		{
+			group = grind[i];
+			#pragma omp critical
+			{
+				iingrs[group].members[iingrs[group].size] = i;
+				iingrs[group].size++;
+			}
+		}
+	
+		#pragma omp master
+		{
+			// free the memory
+			free(grind);
+
+			clock_gettime(CLOCK_REALTIME, &t4);
+		}
+
+		// compactness of each group: average distance between elements
+		groupcompactness(elems, iingrs, compact);
+
+		#pragma omp master
+		clock_gettime(CLOCK_REALTIME, &t5);
+
+		// diseases analysis
+		diseases(nelems, iingrs, dise, disepro);
 	}
-
-	// free the memory
-	free(grind);
-
-	clock_gettime(CLOCK_REALTIME, &t4);
-
-	// compactness of each group: average distance between elements
-	groupcompactness(elems, iingrs, compact);
-
-	clock_gettime(CLOCK_REALTIME, &t5);
-
-	// diseases analysis
-
-	diseases(nelems, iingrs, dise, disepro);
 
 	// Free the memory
 	free(elems);
@@ -191,7 +218,7 @@ void main(int argc, char *argv[])
 	// write results in a file
 	// =======================
 
-	f2 = fopen("results_s.out", "w");
+	f2 = fopen("results_p.out", "w");
 	if (f2 == NULL)
 	{
 		printf("Error when opening file results_s.outs \n");
