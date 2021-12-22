@@ -47,6 +47,7 @@ void closestgroup(int nelems, float **elems, float cent[][NFEAT], int *grind)
 	double aux_d; // output of geneticdistance
 
 	// Iterate over all elements
+	// [*] Static scheduling, similar workload for each iteration
     #pragma omp for nowait private(min_d, min_d_i, aux_d)
 	for (int i = 0; i < nelems; i++)
 	{
@@ -77,15 +78,15 @@ void closestgroup(int nelems, float **elems, float cent[][NFEAT], int *grind)
 ***************************************************************************************************/
 void groupcompactness(float **elems, struct ginfo *iingrs, float *compact)
 {
-   // We need this variable because compact variable points to an average of distances, and
-   // if we try to calculate the sum of all distances in this variable, if the group is so big,
-   // it may not fit and the compiler will try to round it, so the final result is not going to be
-   // completely accurate
-   double comp_aux;
-   int gsize;
+	// We need this variable because compact variable points to an average of distances, and
+	// if we try to calculate the sum of all distances in this variable, if the group is so big,
+	// it may not fit and the compiler will try to round it, so the final result is not going to be
+	// completely accurate
+	double comp_aux;
+	int gsize;
 
 	// Iterate over each group
-	#pragma omp for nowait private(gsize, comp_aux)
+	#pragma omp for nowait private(gsize, comp_aux) schedule(dynamic)
 	for (int i = 0; i < NGROUPS; i++)
 	{
 		gsize = iingrs[i].size;
@@ -116,6 +117,7 @@ void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *d
 	int gsize;
 
 	// Intialize disepro struct for the current disease
+	// [*] static schedule, similar workload for each iteration
 	#pragma omp for
 	for (int i = 0; i < TDISEASE; i++)
 	{
@@ -123,7 +125,7 @@ void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *d
 		disepro[i].mmin = FLT_MAX;
 	}
 
-	#pragma omp for nowait private(gsize, diseaseList, median)
+	#pragma omp for nowait private(gsize, diseaseList, median) schedule(dynamic)
 	for (int i = 0; i < NGROUPS; i++)
 	{
 		gsize = iingrs[i].size;
@@ -159,7 +161,7 @@ void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *d
 					}
 				}
 			}
-		}		
+		}
 		// Free the memory
 		free(diseaseList);
 	}

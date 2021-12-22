@@ -123,12 +123,14 @@ void main(int argc, char *argv[])
 			// calculate new centroids for each group:  average of each dimension or feature
 			// additions: to accumulate the values for each feature and cluster. Last value: number of elements in the group
 			// [*] Parallelized initialisation
+			// [*] Static schedule, workload is similar for every iteration
 			#pragma omp for
 			for (i = 0; i < NGROUPS; i++)
 				for (j = 0; j < NFEAT + 1; j++)
 					additions[i][j] = 0.0;
 		
 			// [*] additions is a summation, so reduction +
+			// [*] default scheduling, workload is similar to every thread
 			#pragma omp for nowait reduction(+:additions)
 			for (i = 0; i < nelems; i++)
 			{
@@ -143,8 +145,9 @@ void main(int argc, char *argv[])
 			#pragma omp single
 			finish = 1;
 
-			// [*] Parallelized calculation of new centroids
-			
+			// [*] Parallelized calculation of new centroids	
+			// [*] Static schedule. Could be dynamic because of the inner condition,
+			// but there are almost never empty groups (in our case never)
 			#pragma omp for nowait private(discent)
 			for (i = 0; i < NGROUPS; i++)
 				if (additions[i][NFEAT] > 0) // the group is not empty
@@ -172,6 +175,7 @@ void main(int argc, char *argv[])
 	// ================================================================================================
 	#pragma omp parallel default(none) shared(iingrs, nelems, grind, t4, elems, compact, t5, dise, disepro) private(i, group)
 	{
+		// [*] static scheduling, similar workload per iteration
 		#pragma omp for
 		for (i = 0; i < NGROUPS; i++) iingrs[i].size = 0;
 	
