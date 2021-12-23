@@ -146,7 +146,7 @@ void diseases(int nelems, struct ginfo *iingrs, float **dise, struct analysis *d
 					disepro[j].mmin = median;
 					disepro[j].gmin = i;
 				}
-				else if (median > disepro[j].mmax)
+				if (median > disepro[j].mmax)
 				{
 					disepro[j].mmax = median;
 					disepro[j].gmax = i;
